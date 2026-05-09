@@ -91,26 +91,37 @@ def main():
     
     # Order points to Top-Left, Top-Right, Bottom-Right, Bottom-Left
     src_pts = order_points(centers)
+    (tl, tr, br, bl) = src_pts
+    
     print("Ordered Source Points (TL, TR, BR, BL):")
     for pt in src_pts:
         print(f"  ({pt[0]:.1f}, {pt[1]:.1f})")
 
-    # Define the destination points (800x800 perfect square)
-    output_size = 800
+    # Compute the width of the new image
+    widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+    widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+    maxWidth = max(int(widthA), int(widthB))
+
+    # Compute the height of the new image
+    heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+    heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+    maxHeight = max(int(heightA), int(heightB))
+
+    # Define the destination points for the top-down view
     dst_pts = np.array([
         [0, 0],
-        [output_size - 1, 0],
-        [output_size - 1, output_size - 1],
-        [0, output_size - 1]
+        [maxWidth - 1, 0],
+        [maxWidth - 1, maxHeight - 1],
+        [0, maxHeight - 1]
     ], dtype="float32")
 
-    print(f"Calculating perspective transform matrix for {output_size}x{output_size} output...")
+    print(f"Calculating perspective transform matrix for {maxWidth}x{maxHeight} output...")
     # Calculate the perspective transform matrix
     matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
 
     # Apply the perspective warp
     print("Applying warp perspective...")
-    warped_img = cv2.warpPerspective(img, matrix, (output_size, output_size))
+    warped_img = cv2.warpPerspective(img, matrix, (maxWidth, maxHeight))
 
     # Save the output image
     cv2.imwrite(output_path, warped_img)

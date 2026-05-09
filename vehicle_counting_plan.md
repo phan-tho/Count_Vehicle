@@ -28,8 +28,8 @@ The proposed pipeline is highly optimal and perfectly suited for this specific s
     *   Apply a mask to black out everything outside the selected lanes.
 *   **Libraries:** `cv2`, `json`.
 
-### Phase 3: Grayscale Otsu Vehicle Counting per ROI
-*   **Goal:** Count the vehicles (bright blocks) in each lane regardless of their specific color, ensuring immunity to color casts and shadows.
+### Phase 3: Grayscale Otsu Vehicle Masking per ROI
+*   **Goal:** Mask the vehicles (bright blocks) in each lane regardless of their specific color, ensuring immunity to color casts and shadows.
 *   **Techniques:**
     *   Convert each lane ROI independently into Grayscale.
     *   Use statistical checks (Standard Deviation) to safely ignore empty lanes.
@@ -37,7 +37,10 @@ The proposed pipeline is highly optimal and perfectly suited for this specific s
     *   Find contours, filter out noise by area, and draw bounding boxes with a lane counter.
 *   **Libraries:** `cv2`, `numpy`, `json`.
 
-### Phase 4: Video Processing Loop & Output
+### Phase 4: Count vehicles
+*  **Goal:** Count vehicles for each lane
+
+### Phase 5: Video Processing Loop & Output
 *   **Goal:** Apply the pipeline to the entire video and output the counting data.
 *   **Techniques:** Loop through video frames, process them, draw bounding boxes and counters on the frame for visualization, and export the lane counts for the traffic light algorithm.
 *   **Libraries:** `cv2`.

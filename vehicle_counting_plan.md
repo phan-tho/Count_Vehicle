@@ -6,7 +6,7 @@ Develop a robust computer vision pipeline to count the number of vehicles (repre
 ## Pipeline Evaluation
 The proposed pipeline is highly optimal and perfectly suited for this specific scenario. Here is why:
 1. **ArUco Markers:** The presence of ArUco markers at the four corners of the board is a massive advantage. It allows for an exact, mathematically precise perspective transformation. This eliminates errors caused by camera angle or minor camera movements.
-2. **Adaptive Color Segmentation & Static ROIs:** Since Step 1 guarantees a fixed perspective, the physical coordinates of the lanes will never change. By defining Static ROIs early, we can crop out the lanes and eliminate 90% of background noise. Furthermore, processing colors adaptively per ROI (using color ratios) rather than relying on global HSV thresholds makes the pipeline incredibly robust against dynamic illumination shifts and color casts.
+2. **Grayscale Otsu Thresholding per ROI:** Since Step 1 guarantees a fixed perspective, the physical coordinates of the lanes will never change. By defining Static ROIs early, we can crop out the lanes and eliminate 90% of background noise. Furthermore, converting ROIs to grayscale and applying Otsu's thresholding dynamically perfectly separates the bright vehicles from the darker background without struggling against dynamic illumination shifts and color casts.
 
 ---
 
@@ -28,21 +28,16 @@ The proposed pipeline is highly optimal and perfectly suited for this specific s
     *   Apply a mask to black out everything outside the selected lanes.
 *   **Libraries:** `cv2`, `json`.
 
-### Phase 3: Adaptive Color Segmentation per ROI
-*   **Goal:** Isolate the red and green vehicles dynamically without using rigid global thresholds, adapting to local lighting shifts.
+### Phase 3: Grayscale Otsu Vehicle Counting per ROI
+*   **Goal:** Count the vehicles (bright blocks) in each lane regardless of their specific color, ensuring immunity to color casts and shadows.
 *   **Techniques:**
-    *   Process each lane ROI independently.
+    *   Convert each lane ROI independently into Grayscale.
+    *   Use statistical checks (Standard Deviation) to safely ignore empty lanes.
+    *   Apply Otsu's Thresholding to dynamically separate bright vehicles from the darker road.
+    *   Find contours, filter out noise by area, and draw bounding boxes with a lane counter.
+*   **Libraries:** `cv2`, `numpy`, `json`.
 
-### Phase 4: Vehicle Detection & Counting
-*   **Goal:** Count the vehicles in their respective lanes using the generated masks.
-*   **Techniques:**
-    *   Find contours on the adaptively cleaned binary masks within each ROI.
-    *   Calculate the centroid or bounding box of each vehicle contour.
-    *   Filter out small noise contours by area.
-    *   Increment the respective lane's counter.
-*   **Libraries:** `cv2`.
-
-### Phase 5: Video Processing Loop & Output
+### Phase 4: Video Processing Loop & Output
 *   **Goal:** Apply the pipeline to the entire video and output the counting data.
 *   **Techniques:** Loop through video frames, process them, draw bounding boxes and counters on the frame for visualization, and export the lane counts for the traffic light algorithm.
 *   **Libraries:** `cv2`.

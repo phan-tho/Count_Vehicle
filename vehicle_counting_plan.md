@@ -6,8 +6,7 @@ Develop a robust computer vision pipeline to count the number of vehicles (repre
 ## Pipeline Evaluation
 The proposed pipeline is highly optimal and perfectly suited for this specific scenario. Here is why:
 1. **ArUco Markers:** The presence of ArUco markers at the four corners of the board is a massive advantage. It allows for an exact, mathematically precise perspective transformation. This eliminates errors caused by camera angle or minor camera movements.
-2. **HSV Thresholding:** Given the distinct colors (red and green) of the "vehicles", HSV color space is the most resilient method against lighting variations, especially screen glare or moiré patterns present in the video.
-3. **Static ROIs:** Since Step 1 guarantees a fixed, flattened perspective, the physical coordinates of the lanes will never change. Using static Region of Interests (ROIs) is computationally extremely cheap and highly reliable compared to complex object tracking algorithms (like SORT or DeepSORT).
+2. **Adaptive Color Segmentation & Static ROIs:** Since Step 1 guarantees a fixed perspective, the physical coordinates of the lanes will never change. By defining Static ROIs early, we can crop out the lanes and eliminate 90% of background noise. Furthermore, processing colors adaptively per ROI (using color ratios) rather than relying on global HSV thresholds makes the pipeline incredibly robust against dynamic illumination shifts and color casts.
 
 ---
 
@@ -21,27 +20,26 @@ The proposed pipeline is highly optimal and perfectly suited for this specific s
     *   Warp the perspective to crop and flatten the board.
 *   **Libraries:** `cv2` (OpenCV), `cv2.aruco`, `numpy`.
 
-### Phase 2: Pre-processing (Noise Reduction)
-*   **Goal:** Clean up the video feed, specifically reducing the screen's moiré effect and digital noise without altering the colors.
-*   **Techniques:** Apply a subtle blur (e.g., Gaussian Blur) to smooth out the pixels. Avoid histogram equalization to prevent color distortion.
-*   **Libraries:** `cv2`.
+### Phase 2: Interactive Lane ROI Selection & Masking
+*   **Goal:** Eliminate environmental noise by selecting static bounding boxes for the lanes and masking out the rest of the board.
+*   **Techniques:** 
+    *   Use an interactive selector (`cv2.selectROIs`) to define lane boundaries.
+    *   Save these coordinates to a configuration file (`lane_rois.json`) for persistence.
+    *   Apply a mask to black out everything outside the selected lanes.
+*   **Libraries:** `cv2`, `json`.
 
-### Phase 3: Color Segmentation (HSV Thresholding)
-*   **Goal:** Isolate the red and green vehicles from the dark background.
+### Phase 3: Adaptive Color Segmentation per ROI
+*   **Goal:** Isolate the red and green vehicles dynamically without using rigid global thresholds, adapting to local lighting shifts.
 *   **Techniques:**
-    *   Convert the flattened image from BGR to HSV color space.
-    *   Define HSV bounds for 'Red' and 'Green'.
-    *   Create binary masks for both colors.
-    *   Apply morphological operations (Opening/Closing) to remove tiny noise specks and bridge small gaps in the vehicle blocks.
-*   **Libraries:** `cv2`, `numpy`.
+    *   Process each lane ROI independently.
 
-### Phase 4: Vehicle Detection & Static ROIs Mapping
-*   **Goal:** Count the vehicles in their respective lanes.
+### Phase 4: Vehicle Detection & Counting
+*   **Goal:** Count the vehicles in their respective lanes using the generated masks.
 *   **Techniques:**
-    *   Find contours on the cleaned binary masks to detect individual vehicles.
-    *   Calculate the centroid (center point) of each vehicle contour.
-    *   Define static rectangular bounding boxes (ROIs) for each lane on the flattened image.
-    *   Check which ROI contains the centroid of each vehicle and increment the respective lane's counter.
+    *   Find contours on the adaptively cleaned binary masks within each ROI.
+    *   Calculate the centroid or bounding box of each vehicle contour.
+    *   Filter out small noise contours by area.
+    *   Increment the respective lane's counter.
 *   **Libraries:** `cv2`.
 
 ### Phase 5: Video Processing Loop & Output

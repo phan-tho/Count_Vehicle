@@ -5,8 +5,8 @@ import os
 
 INPUT_IMAGE_PATH = 'sample_img/phase2/phase2_masked_lanes.png'
 ROI_JSON_PATH = 'lane_rois.json'
-OUTPUT_VIZ_PATH = 'sample_img/phase3_grayscale_output.png'
-OUTPUT_MASK_PATH = 'sample_img/phase3_grayscale_mask.png'
+OUTPUT_VIZ_PATH = 'sample_img/phase3/phase3_grayscale_output.png'
+OUTPUT_MASK_PATH = 'sample_img/phase3/phase3_grayscale_mask.png'
 
 def process_roi_grayscale(gray):
     """

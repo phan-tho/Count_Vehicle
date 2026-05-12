@@ -1,103 +1,141 @@
 import cv2
+import numpy as np
 import json
 import os
-import numpy as np
 
 def main():
-    mask_path = 'sample_img/phase3/phase3_grayscale_mask.png'
-    vis_path = 'sample_img/phase2/phase2_masked_lanes.png'
-    lane_rois_path = 'lane_rois.json'
-    vehicle_params_path = 'vehicle_params.json'
-    output_dir = 'sample_img/phase4'
-    output_path = os.path.join(output_dir, 'phase4_counting_result.png')
+    # File paths
+    MASK_PATH = 'sample_img/phase3/phase3_grayscale_mask.png'
+    BGR_PATH = 'sample_img/phase2/phase2_masked_lanes.png'
+    ROIS_PATH = 'lane_rois.json'
+    PARAMS_PATH = 'vehicle_params.json'
+    OUT_DIR = 'sample_img/phase4'
+    OUT_PATH = os.path.join(OUT_DIR, 'phase4_counting_result.png')
 
-    # 1. Load images
-    if not os.path.exists(mask_path):
-        print(f"Error: Mask image not found at {mask_path}")
+    # Create output directory if it doesn't exist
+    if not os.path.exists(OUT_DIR):
+        os.makedirs(OUT_DIR)
+
+    # Load images
+    mask = cv2.imread(MASK_PATH, cv2.IMREAD_GRAYSCALE)
+    if mask is None:
+        print(f"Error: Could not load mask from {MASK_PATH}")
         return
-    if not os.path.exists(vis_path):
-        print(f"Error: Visualization image not found at {vis_path}")
+
+    bgr_img = cv2.imread(BGR_PATH)
+    if bgr_img is None:
+        print(f"Error: Could not load BGR image from {BGR_PATH}")
         return
 
-    mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-    vis_img = cv2.imread(vis_path, cv2.IMREAD_COLOR)
+    output_img = bgr_img.copy()
 
-    # 2. Read lane ROIs
-    if not os.path.exists(lane_rois_path):
-        print(f"Error: Lane ROIs file not found at {lane_rois_path}")
+    # Load parameters
+    try:
+        with open(ROIS_PATH, 'r') as f:
+            rois = json.load(f)
+    except Exception as e:
+        print(f"Error loading {ROIS_PATH}: {e}")
         return
-    with open(lane_rois_path, 'r') as f:
-        lane_rois = json.load(f)
 
-    # 3. Read vehicle params
-    if not os.path.exists(vehicle_params_path):
-        print(f"Error: Vehicle params file not found at {vehicle_params_path}")
+    try:
+        with open(PARAMS_PATH, 'r') as f:
+            params = json.load(f)
+    except Exception as e:
+        print(f"Error loading {PARAMS_PATH}: {e}")
         return
-    with open(vehicle_params_path, 'r') as f:
-        params = json.load(f)
-    
-    min_area = params['MIN_VEHICLE_AREA']
-    avg_area = params['AVERAGE_VEHICLE_AREA']
 
-    print(f"Loaded params: MIN_VEHICLE_AREA={min_area}, AVERAGE_VEHICLE_AREA={avg_area}")
+    MIN_VEHICLE_AREA = params.get("MIN_VEHICLE_AREA", 200)
+    AVERAGE_CAR_AREA = params.get("AVERAGE_CAR_AREA", 895)
+    AVERAGE_BIKE_AREA = params.get("AVERAGE_BIKE_AREA", 400)
 
-    # 4. Initialize counters
-    total_vehicles = 0
-    lane_counts = []
+    print("--- Phase 4: Vehicle Counting ---")
+    print(f"Parameters: MIN_VEHICLE_AREA={MIN_VEHICLE_AREA}, CAR_AREA={AVERAGE_CAR_AREA}, BIKE_AREA={AVERAGE_BIKE_AREA}")
 
-    # 5. Iterate through each ROI
-    for i, roi in enumerate(lane_rois):
+    total_cars = 0
+    total_bikes = 0
+
+    # Process each ROI (lane)
+    for i, roi in enumerate(rois):
         x, y, w, h = roi
-        lane_vehicle_count = 0
-
-        # Draw ROI bounding box (White)
-        cv2.rectangle(vis_img, (x, y), (x + w, y + h), (255, 255, 255), 2)
-
-        # Crop the mask
-        cropped_mask = mask[y:y+h, x:x+w]
-
+        
+        roi_mask = mask[y:y+h, x:x+w]
+        roi_bgr = bgr_img[y:y+h, x:x+w]
+        
         # Find contours
-        contours, _ = cv2.findContours(cropped_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        for contour in contours:
-            area = cv2.contourArea(contour)
-            
-            # Ignore noise
-            if area < min_area:
+        contours, _ = cv2.findContours(roi_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        lane_cars = 0
+        lane_bikes = 0
+        
+        # Draw lane boundaries (Blue rectangle)
+        cv2.rectangle(output_img, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if area < MIN_VEHICLE_AREA:
                 continue
+                
+            # Create a blank single-contour mask
+            single_mask = np.zeros(roi_mask.shape, dtype=np.uint8)
+            cv2.drawContours(single_mask, [cnt], -1, 255, -1)
             
-            # Calculate estimated vehicles
-            estimated_vehicles = max(1, int(round(area / avg_area)))
-            lane_vehicle_count += estimated_vehicles
+            # Extract pixels using int16 to prevent underflow
+            b = roi_bgr[:, :, 0].astype(np.int16)
+            g = roi_bgr[:, :, 1].astype(np.int16)
+            r = roi_bgr[:, :, 2].astype(np.int16)
+            
+            in_mask = single_mask > 0
+            
+            # Count Red pixels: R > G + 20 and R > B + 20
+            red_cond = (r > g + 20) & (r > b + 20) & in_mask
+            red_px = np.sum(red_cond)
+            
+            # Count Green pixels: G > R + 20 and G > B + 20
+            green_cond = (g > r + 20) & (g > b + 20) & in_mask
+            green_px = np.sum(green_cond)
+            
+            total_color_px = red_px + green_px
+            if total_color_px == 0:
+                continue
+                
+            # Calculate proportions
+            r_ratio = red_px / total_color_px
+            g_ratio = green_px / total_color_px
+            
+            # Estimate counts based on area and proportions
+            cars = max(0, round((area * r_ratio) / AVERAGE_CAR_AREA))
+            bikes = max(0, round((area * g_ratio) / AVERAGE_BIKE_AREA))
+            
+            lane_cars += cars
+            lane_bikes += bikes
+            
+            # Draw bounding box for the contour
+            cx, cy, cw, ch = cv2.boundingRect(cnt)
+            global_x = x + cx
+            global_y = y + cy
+            
+            cv2.rectangle(output_img, (global_x, global_y), (global_x + cw, global_y + ch), (0, 255, 255), 2)
+            
+            # Add text label for specific counts
+            label = f"C:{cars} B:{bikes}"
+            text_y = global_y - 5 if global_y - 5 > 10 else global_y + 15
+            cv2.putText(output_img, label, (global_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+            
+        # Draw text label above the lane
+        lane_label = f"Lane {i}: Cars={lane_cars} Bikes={lane_bikes}"
+        lane_text_y = y - 10 if y - 10 > 20 else y + h + 20
+        cv2.putText(output_img, lane_label, (x, lane_text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
+        
+        # Accumulate and print details
+        print(f"Lane {i}: Cars = {lane_cars}, Bikes = {lane_bikes}")
+        total_cars += lane_cars
+        total_bikes += lane_bikes
 
-            # 6. Draw contour bounding box and label
-            cx, cy, cw, ch = cv2.boundingRect(contour)
-            abs_x = x + cx
-            abs_y = y + cy
+    print("---------------------------------")
+    print(f"Total Counts - Cars: {total_cars}, Bikes: {total_bikes}")
+    
+    cv2.imwrite(OUT_PATH, output_img)
+    print(f"Saved result to: {OUT_PATH}")
 
-            # Draw bounding box around contour (Cyan)
-            cv2.rectangle(vis_img, (abs_x, abs_y), (abs_x + cw, abs_y + ch), (255, 255, 0), 2)
-
-            # Draw text label (estimated vehicles)
-            cv2.putText(vis_img, f"x{estimated_vehicles}", (abs_x, max(abs_y - 5, 0)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-
-        # Add lane total to overall total
-        total_vehicles += lane_vehicle_count
-        lane_counts.append(lane_vehicle_count)
-
-        # Draw lane total at the top of the lane ROI
-        cv2.putText(vis_img, f"Lane {i+1}: {lane_vehicle_count} veh", (x, max(y - 10, 0)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-
-        print(f"Lane {i+1} count: {lane_vehicle_count}")
-
-    print(f"\nTotal vehicles across all lanes: {total_vehicles}")
-
-    # 7. Create output dir and save
-    os.makedirs(output_dir, exist_ok=True)
-    cv2.imwrite(output_path, vis_img)
-    print(f"Saved visualization result to {output_path}")
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

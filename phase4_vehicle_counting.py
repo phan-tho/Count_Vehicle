@@ -96,15 +96,16 @@ def main():
             
             total_color_px = red_px + green_px
             if total_color_px == 0:
-                continue
+                cars = 0
+                bikes = 1
+            else:
+                # Calculate proportions
+                r_ratio = red_px / total_color_px
+                g_ratio = green_px / total_color_px
                 
-            # Calculate proportions
-            r_ratio = red_px / total_color_px
-            g_ratio = green_px / total_color_px
-            
-            # Estimate counts based on area and proportions
-            cars = max(0, round((area * r_ratio) / AVERAGE_CAR_AREA))
-            bikes = max(0, round((area * g_ratio) / AVERAGE_BIKE_AREA))
+                # Estimate counts based on area and proportions
+                cars = max(0, round((area * r_ratio) / AVERAGE_CAR_AREA))
+                bikes = max(0, round((area * g_ratio) / AVERAGE_BIKE_AREA))
             
             lane_cars += cars
             lane_bikes += bikes

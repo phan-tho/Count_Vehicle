@@ -24,8 +24,8 @@ def order_points(pts):
     return rect
 
 def main():
-    img_path = 'sample2.png'
-    output_path = 'phase1_output2.png'
+    img_path = 'sample_img/sample.png'
+    output_path = 'sample_img/phase1/phase1_output.png'
     
     print(f"Loading image from {img_path}...")
     img = cv2.imread(img_path)

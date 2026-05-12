@@ -52,8 +52,6 @@ def main():
 
     # Create a full-size combined mask for debugging
     full_mask = np.zeros(img.shape[:2], dtype=np.uint8)
-    
-    total_vehicles = 0
 
     for i, (x, y, w, h) in enumerate(rois):
         roi_bgr = img[y:y+h, x:x+w]
@@ -65,33 +63,14 @@ def main():
         # Place the ROI mask back into the full size mask
         full_mask[y:y+h, x:x+w] = mask
         
-        # Find contours
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        lane_vehicle_count = 0
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area > 80: # Filter small noise
-                vx, vy, vw, vh = cv2.boundingRect(cnt)
-                # Draw bounding box (Blue for generic vehicle)
-                cv2.rectangle(viz_img, (x+vx, y+vy), (x+vx+vw, y+vy+vh), (255, 0, 0), 2)
-                lane_vehicle_count += 1
-                
-        # Draw ROI boundaries
+        # Highlight ROI boundaries on visualization image
         cv2.rectangle(viz_img, (x, y), (x+w, y+h), (255, 255, 255), 1)
-        
-        # Optionally, write the count on the lane
-        cv2.putText(viz_img, f"Count: {lane_vehicle_count}", (x, y - 10), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        
-        total_vehicles += lane_vehicle_count
 
     os.makedirs(os.path.dirname(OUTPUT_VIZ_PATH), exist_ok=True)
     cv2.imwrite(OUTPUT_VIZ_PATH, viz_img)
     cv2.imwrite(OUTPUT_MASK_PATH, full_mask)
     
     print(f"Processed {len(rois)} ROIs.")
-    print(f"Total vehicles detected: {total_vehicles}")
     print(f"Saved visualization to {OUTPUT_VIZ_PATH}")
 
 if __name__ == "__main__":

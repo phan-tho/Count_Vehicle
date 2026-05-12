@@ -1,0 +1,17 @@
+{
+    "MIN_VEHICLE_AREA": 162,
+    "AVERAGE_VEHICLE_AREA": 646,
+    "SAMPLES_COUNT": 10,
+    "RAW_AREAS": [
+        969,
+        336,
+        435,
+        1029,
+        779,
+        324,
+        792,
+        406,
+        903,
+        493
+    ]
+}

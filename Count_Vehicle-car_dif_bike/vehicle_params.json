@@ -1,0 +1,18 @@
+{
+    "MIN_VEHICLE_AREA": 162,
+    "AVERAGE_BIKE_AREA": 400,
+    "AVERAGE_CAR_AREA": 895,
+    "SAMPLES_COUNT": 10,
+    "RAW_AREAS": [
+        969,
+        336,
+        435,
+        1029,
+        779,
+        324,
+        792,
+        406,
+        903,
+        493
+    ]
+}

@@ -22,32 +22,22 @@ def order_points(pts):
     return rect
 
 def get_perspective_matrix(img):
-    dict_to_try = [
-        cv2.aruco.DICT_4X4_50, 
-        cv2.aruco.DICT_4X4_100, 
-        cv2.aruco.DICT_4X4_250, 
-        cv2.aruco.DICT_4X4_1000
-    ]
-    
     corners = None
     ids = None
     
-    for dict_id in dict_to_try:
-        try:
-            aruco_dict = cv2.aruco.getPredefinedDictionary(dict_id)
-        except AttributeError:
-            aruco_dict = cv2.aruco.Dictionary_get(dict_id)
+    dict_id = cv2.aruco.DICT_4X4_50
+    try:
+        aruco_dict = cv2.aruco.getPredefinedDictionary(dict_id)
+    except AttributeError:
+        aruco_dict = cv2.aruco.Dictionary_get(dict_id)
 
-        try:
-            aruco_params = cv2.aruco.DetectorParameters()
-            detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
-            corners, ids, rejected = detector.detectMarkers(img)
-        except AttributeError:
-            aruco_params = cv2.aruco.DetectorParameters_create()
-            corners, ids, rejected = cv2.aruco.detectMarkers(img, aruco_dict, parameters=aruco_params)
-
-        if ids is not None and len(ids) >= 4:
-            break
+    try:
+        aruco_params = cv2.aruco.DetectorParameters()
+        detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
+        corners, ids, rejected = detector.detectMarkers(img)
+    except AttributeError:
+        aruco_params = cv2.aruco.DetectorParameters_create()
+        corners, ids, rejected = cv2.aruco.detectMarkers(img, aruco_dict, parameters=aruco_params)
 
     if ids is None or len(ids) < 4:
         return None, None
@@ -101,32 +91,21 @@ def main():
     # so the script works correctly regardless of CWD
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     VIDEO_PATH = os.path.join(BASE_DIR, 'sa_ban_traffic.mp4')
-    ROIS_PATH = os.path.join(BASE_DIR, 'lane_rois.json')
-    PARAMS_PATH = os.path.join(BASE_DIR, 'vehicle_params.json')
     OUT_VIDEO_PATH = os.path.join(BASE_DIR, 'phase5_output_video.mp4')
     OUT_CSV_PATH = os.path.join(BASE_DIR, 'phase5_traffic_data.csv')
 
     if not os.path.exists(VIDEO_PATH):
         print(f"Error: {VIDEO_PATH} not found.")
         return
+    rois = [[6,282,158,131],[436,290,1099,123],[1810,167,153,119],
+    [423,164,1112,122],[6,746,150,123],[426,750,1113,118],[1810,624,156,121],
+    [430,622,1107,117],[288,877,134,154],[296,419,128,202],[165,3,133,155],
+    [169,422,123,194],[1668,884,138,142],[1676,423,124,189],[1547,6,130,156],
+    [1549,413,118,197]]
 
-    try:
-        with open(ROIS_PATH, 'r') as f:
-            rois = json.load(f)
-    except Exception as e:
-        print(f"Error loading {ROIS_PATH}: {e}")
-        return
-
-    try:
-        with open(PARAMS_PATH, 'r') as f:
-            params = json.load(f)
-    except Exception as e:
-        print(f"Error loading {PARAMS_PATH}: {e}")
-        return
-
-    MIN_VEHICLE_AREA = params.get("MIN_VEHICLE_AREA", 200)
-    AVERAGE_CAR_AREA = params.get("AVERAGE_CAR_AREA", 895)
-    AVERAGE_BIKE_AREA = params.get("AVERAGE_BIKE_AREA", 400)
+    MIN_VEHICLE_AREA = 162
+    AVERAGE_CAR_AREA = 895
+    AVERAGE_BIKE_AREA = 400
 
     cap = cv2.VideoCapture(VIDEO_PATH)
     

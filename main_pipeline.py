@@ -133,8 +133,15 @@ class VehicleCounter:
         results = []
         
         # 2 & 3 & 4. Process each ROI: mask, grayscale, counting
+        img_h, img_w = warped_img.shape[:2]
         for i, roi in enumerate(self.rois):
-            x, y, w, h = roi
+            rx, ry, rw, rh = roi
+            x, y, w, h = int(rx * img_w), int(ry * img_h), int(rw * img_w), int(rh * img_h)
+            
+            # Ensure boundaries are within the image
+            x, y = max(0, x), max(0, y)
+            w, h = min(img_w - x, w), min(img_h - y, h)
+            
             roi_bgr = warped_img[y:y+h, x:x+w]
             
             if roi_bgr.shape[0] == 0 or roi_bgr.shape[1] == 0:
@@ -298,4 +305,4 @@ def process_video():
 
 if __name__ == "__main__":
     test_single_image()
-    # process_video()
+    process_video()

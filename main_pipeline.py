@@ -11,36 +11,35 @@ OUTPUT_VIDEO_PATH = 'output_traffic.mp4'
 OUTPUT_CSV_PATH = 'traffic_data.csv'
 PROCESSED_FPS = 5  # Target FPS for processing (to simulate Pi5 performance)
 PERSPECTIVE_INTERVAL = 5  # Recompute perspective every N processed frames (helps with camera shake)
-ROI_JSON_PATH = 'meta_data/lane_rois.json'
-VEHICLE_PARAMS_PATH = 'meta_data/vehicle_params.json'
+# ROIS_PATH = 'lane_rois.json'
+# PARAMS_PATH = 'vehicle_params.json'
 # -----------------------
 
 class VehicleCounter:
-    def __init__(self, rois_path=ROI_JSON_PATH, params_path=VEHICLE_PARAMS_PATH):
+    def __init__(self): # , rois_path=ROIS_PATH, params_path=PARAMS_PATH):
         self.matrix = None
         self.max_width = 0
         self.max_height = 0
         
-        if os.path.exists(rois_path):
-            with open(rois_path, 'r') as f:
-                self.rois = json.load(f)
-
-        else:
-            print(f"Warning: {rois_path} not found.")
-            self.rois = []
+        # if os.path.exists(rois_path):
+        #     with open(rois_path, 'r') as f:
+        #         self.rois = json.load(f)
+        # else:
+        #     print(f"Warning: {rois_path} not found.")
+        #     self.rois = []
+        self.rois = [[6,282,158,131],[436,290,1099,123],[1810,167,153,119],[423,164,1112,122],[6,746,150,123],[426,750,1113,118],[1810,624,156,121],[430,622,1107,117],[288,877,134,154],[296,419,128,202],[165,3,133,155],[169,422,123,194],[1668,884,138,142],[1676,423,124,189],[1547,6,130,156],[1549,413,118,197]]
             
-        if os.path.exists(params_path):
-            with open(params_path, 'r') as f:
-                params = json.load(f)
-                self.min_vehicle_area = int(params.get("MIN_VEHICLE_AREA", 200) / 18.53)
-                self.car_area = int(params.get("AVERAGE_CAR_AREA", 895) / 15.53)
-                self.bike_area = int(params.get("AVERAGE_BIKE_AREA", 400) / 15.53)
-
-                print(self.min_vehicle_area, self.car_area, self.bike_area)
-
-        # self.min_vehicle_area = 162
-        # self.car_area = 895
-        # self.bike_area = 400
+        # if os.path.exists(params_path):
+        #     with open(params_path, 'r') as f:
+        #         params = json.load(f)
+        #         self.min_vehicle_area = params.get("MIN_VEHICLE_AREA", 200)
+        #         self.car_area = params.get("AVERAGE_CAR_AREA", 895)
+        #         self.bike_area = params.get("AVERAGE_BIKE_AREA", 400)
+        # else:
+        #     print(f"Warning: {params_path} not found. Using defaults.")
+        self.min_vehicle_area = 162
+        self.car_area = 895
+        self.bike_area = 400
 
     def order_points(self, pts):
         rect = np.zeros((4, 2), dtype="float32")
@@ -122,6 +121,7 @@ class VehicleCounter:
                 return img, []
                 
         warped_img = cv2.warpPerspective(img, self.matrix, (self.max_width, self.max_height))
+        warped_img = cv2.resize(warped_img, (1970, 1032))
         output_img = warped_img.copy()
         
         results = []
@@ -129,13 +129,17 @@ class VehicleCounter:
         # 2 & 3 & 4. Process each ROI: mask, grayscale, counting
         img_h, img_w = warped_img.shape[:2]
         for i, roi in enumerate(self.rois):
-            rx, ry, rw, rh = roi
-            x, y, w, h = int(rx * img_w), int(ry * img_h), int(rw * img_w), int(rh * img_h)
-            
-            # Ensure boundaries are within the image
+            # print("hello ", i)
+            if roi and max(roi) <= 1:
+                x = int(roi[0] * img_w)
+                y = int(roi[1] * img_h)
+                w = int(roi[2] * img_w)
+                h = int(roi[3] * img_h)
+            else:
+                x, y, w, h = [int(v) for v in roi]
+
             x, y = max(0, x), max(0, y)
             w, h = min(img_w - x, w), min(img_h - y, h)
-            
             roi_bgr = warped_img[y:y+h, x:x+w]
             
             if roi_bgr.shape[0] == 0 or roi_bgr.shape[1] == 0:
@@ -195,13 +199,14 @@ class VehicleCounter:
                 
                 label = f"C:{cars} B:{bikes}"
                 text_y = global_y - 5 if global_y - 5 > 10 else global_y + 15
-                cv2.putText(output_img, label, (global_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.125, (0, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(output_img, label, (global_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
                 
             lane_label = f"Lane {i}: Cars={lane_cars} Bikes={lane_bikes}"
             lane_text_y = y - 10 if y - 10 > 20 else y + h + 20
-            cv2.putText(output_img, lane_label, (x, lane_text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.15, (255, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(output_img, lane_label, (x, lane_text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
             
             results.append({'lane': i, 'cars': lane_cars, 'bikes': lane_bikes})
+            # print("done ", i)
             
         return output_img, results
 

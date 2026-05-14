@@ -127,6 +127,7 @@ class VehicleCounter:
         results = []
         
         # 2 & 3 & 4. Process each ROI: mask, grayscale, counting
+        img_h, img_w = warped_img.shape[:2]
         for i, roi in enumerate(self.rois):
             # print("hello ", i)
             x, y, w, h = roi
@@ -189,11 +190,11 @@ class VehicleCounter:
                 
                 label = f"C:{cars} B:{bikes}"
                 text_y = global_y - 5 if global_y - 5 > 10 else global_y + 15
-                cv2.putText(output_img, label, (global_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(output_img, label, (global_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.125, (0, 255, 255), 1, cv2.LINE_AA)
                 
             lane_label = f"Lane {i}: Cars={lane_cars} Bikes={lane_bikes}"
             lane_text_y = y - 10 if y - 10 > 20 else y + h + 20
-            cv2.putText(output_img, lane_label, (x, lane_text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(output_img, lane_label, (x, lane_text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.15, (255, 255, 255), 1, cv2.LINE_AA)
             
             results.append({'lane': i, 'cars': lane_cars, 'bikes': lane_bikes})
             # print("done ", i)

@@ -75,7 +75,10 @@ def main():
     # 4. Create a black mask of the same dimensions (height, width)
     mask = np.zeros(img.shape[:2], dtype=np.uint8)
     
-    for (x, y, w, h) in rois:
+    img_h, img_w = img.shape[:2]
+    
+    for (rx, ry, rw, rh) in rois:
+        x, y, w, h = int(rx * img_w), int(ry * img_h), int(rw * img_w), int(rh * img_h)
         # Draw a filled white rectangle for each selected ROI on the mask
         cv2.rectangle(mask, (x, y), (x + w, y + h), 255, thickness=cv2.FILLED)
 

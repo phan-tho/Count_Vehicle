@@ -53,10 +53,12 @@ def main():
 
     total_cars = 0
     total_bikes = 0
+    img_h, img_w = bgr_img.shape[:2]
 
     # Process each ROI (lane)
     for i, roi in enumerate(rois):
-        x, y, w, h = roi
+        rx, ry, rw, rh = roi
+        x, y, w, h = int(rx * img_w), int(ry * img_h), int(rw * img_w), int(rh * img_h)
         
         roi_mask = mask[y:y+h, x:x+w]
         roi_bgr = bgr_img[y:y+h, x:x+w]

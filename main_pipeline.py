@@ -11,34 +11,35 @@ OUTPUT_VIDEO_PATH = 'output_traffic.mp4'
 OUTPUT_CSV_PATH = 'traffic_data.csv'
 PROCESSED_FPS = 5  # Target FPS for processing (to simulate Pi5 performance)
 PERSPECTIVE_INTERVAL = 5  # Recompute perspective every N processed frames (helps with camera shake)
-ROIS_PATH = 'lane_rois.json'
-PARAMS_PATH = 'vehicle_params.json'
+# ROIS_PATH = 'lane_rois.json'
+# PARAMS_PATH = 'vehicle_params.json'
 # -----------------------
 
 class VehicleCounter:
-    def __init__(self, rois_path=ROIS_PATH, params_path=PARAMS_PATH):
+    def __init__(self): # , rois_path=ROIS_PATH, params_path=PARAMS_PATH):
         self.matrix = None
         self.max_width = 0
         self.max_height = 0
         
-        if os.path.exists(rois_path):
-            with open(rois_path, 'r') as f:
-                self.rois = json.load(f)
-        else:
-            print(f"Warning: {rois_path} not found.")
-            self.rois = []
+        # if os.path.exists(rois_path):
+        #     with open(rois_path, 'r') as f:
+        #         self.rois = json.load(f)
+        # else:
+        #     print(f"Warning: {rois_path} not found.")
+        #     self.rois = []
+        self.rois = [[6,282,158,131],[436,290,1099,123],[1810,167,153,119],[423,164,1112,122],[6,746,150,123],[426,750,1113,118],[1810,624,156,121],[430,622,1107,117],[288,877,134,154],[296,419,128,202],[165,3,133,155],[169,422,123,194],[1668,884,138,142],[1676,423,124,189],[1547,6,130,156],[1549,413,118,197]]
             
-        if os.path.exists(params_path):
-            with open(params_path, 'r') as f:
-                params = json.load(f)
-                self.min_vehicle_area = params.get("MIN_VEHICLE_AREA", 200)
-                self.car_area = params.get("AVERAGE_CAR_AREA", 895)
-                self.bike_area = params.get("AVERAGE_BIKE_AREA", 400)
-        else:
-            print(f"Warning: {params_path} not found. Using defaults.")
-            self.min_vehicle_area = 200
-            self.car_area = 895
-            self.bike_area = 400
+        # if os.path.exists(params_path):
+        #     with open(params_path, 'r') as f:
+        #         params = json.load(f)
+        #         self.min_vehicle_area = params.get("MIN_VEHICLE_AREA", 200)
+        #         self.car_area = params.get("AVERAGE_CAR_AREA", 895)
+        #         self.bike_area = params.get("AVERAGE_BIKE_AREA", 400)
+        # else:
+        #     print(f"Warning: {params_path} not found. Using defaults.")
+        self.min_vehicle_area = 162
+        self.car_area = 895
+        self.bike_area = 400
 
     def order_points(self, pts):
         rect = np.zeros((4, 2), dtype="float32")
@@ -49,14 +50,6 @@ class VehicleCounter:
         rect[1] = pts[np.argmin(diff)]
         rect[3] = pts[np.argmax(diff)]
         return rect
-        
-    """
-    [
-    {'lane': 0, 'cars': 0, 'bikes': 0}, 
-    {'lane': 1, 'cars': 0, 'bikes': 0}, 
-    {'lane': 3, 'cars': 0, 'bikes': 2}, 
-    {'lane': 10, 'cars': 0, 'bikes': 2}]
-    """
 
     def init_perspective(self, img):
         dict_id = cv2.aruco.DICT_4X4_50

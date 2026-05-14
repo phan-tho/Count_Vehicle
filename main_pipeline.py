@@ -128,12 +128,14 @@ class VehicleCounter:
                 return img, []
                 
         warped_img = cv2.warpPerspective(img, self.matrix, (self.max_width, self.max_height))
+        warped_img = cv2.resize(warped_img, (1970, 1032))
         output_img = warped_img.copy()
         
         results = []
         
         # 2 & 3 & 4. Process each ROI: mask, grayscale, counting
         for i, roi in enumerate(self.rois):
+            # print("hello ", i)
             x, y, w, h = roi
             roi_bgr = warped_img[y:y+h, x:x+w]
             
@@ -201,6 +203,7 @@ class VehicleCounter:
             cv2.putText(output_img, lane_label, (x, lane_text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
             
             results.append({'lane': i, 'cars': lane_cars, 'bikes': lane_bikes})
+            # print("done ", i)
             
         return output_img, results
 
@@ -250,7 +253,13 @@ def process_video():
     with open(OUTPUT_CSV_PATH, mode='w', newline='') as csv_file:
         csv_writer = csv.writer(csv_file)
         # Write header
-        csv_writer.writerow(['Frame', 'Timestamp', 'Lane', 'Cars', 'Bikes'])
+        num_lanes = len(counter.rois)
+        header = ['Frame', 'TimeStamp']
+        for i in range(num_lanes):
+            header.extend([f'Lane_{i}_Cars', f'Lane_{i}_Bikes'])
+        csv_writer.writerow(header)
+        
+        current_out_img = None
         
         while cap.isOpened():
             ret, frame = cap.read()
@@ -263,30 +272,32 @@ def process_video():
                 out_img, results = counter.process_frame(frame, recompute_perspective=recompute)
                 end_time = time.time()
 
-                if (frame_idx % 100 == 0):
+                if (frame_idx % 1000 == 0):
                     cv2.imwrite(f"sample_img/debug_video/frame_{frame_idx}.jpg", frame)
                     cv2.imwrite(f"sample_img/debug_video/frame_{frame_idx}_out.jpg", out_img)
                 
+                current_out_img = out_img
                 process_ms = (end_time - start_time) * 1000
                 
-                # Here is where we would send data to the server, e.g.:
-                # requests.post(SERVER_URL, json={"timestamp": time.time(), "counts": results})
-                
-                # print(f"Frame {frame_idx:04d} | Processed in {process_ms:.1f}ms | {results}")
-                
                 # Write to CSV
-                current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-                for res in results:
-                    csv_writer.writerow([frame_idx, current_time, res['lane'], res['cars'], res['bikes']])
+                current_time = time.strftime("%H-%M-%S")
+                row = [frame_idx, current_time]
+                lane_counts = {res['lane']: (res['cars'], res['bikes']) for res in results}
+                for i in range(num_lanes):
+                    cars, bikes = lane_counts.get(i, (0, 0))
+                    row.extend([cars, bikes])
+                csv_writer.writerow(row)
                 
                 if out is None and out_img is not None:
                     h, w = out_img.shape[:2]
-                    out = cv2.VideoWriter(OUTPUT_VIDEO_PATH, fourcc, PROCESSED_FPS, (w, h))
-                    
-                if out is not None and out_img is not None:
-                    out.write(out_img)
+                    # Use video_fps instead of PROCESSED_FPS to ensure same playback length
+                    out = cv2.VideoWriter(OUTPUT_VIDEO_PATH, fourcc, video_fps, (w, h))
                     
                 processed_count += 1
+                
+            # Write current_out_img to video file every original frame to maintain exact length
+            if out is not None and current_out_img is not None:
+                out.write(current_out_img)
                     
             frame_idx += 1
             
@@ -297,5 +308,5 @@ def process_video():
     print(f"Video processing complete. Processed {processed_count} frames. Saved to {OUTPUT_VIDEO_PATH} and {OUTPUT_CSV_PATH}")
 
 if __name__ == "__main__":
-    test_single_image()
-    # process_video()
+    # test_single_image()
+    process_video()

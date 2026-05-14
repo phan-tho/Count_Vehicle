@@ -52,8 +52,10 @@ def main():
 
     # Create a full-size combined mask for debugging
     full_mask = np.zeros(img.shape[:2], dtype=np.uint8)
+    img_h, img_w = img.shape[:2]
 
-    for i, (x, y, w, h) in enumerate(rois):
+    for i, (rx, ry, rw, rh) in enumerate(rois):
+        x, y, w, h = int(rx * img_w), int(ry * img_h), int(rw * img_w), int(rh * img_h)
         roi_bgr = img[y:y+h, x:x+w]
         gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)
         

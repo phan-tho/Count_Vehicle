@@ -44,23 +44,19 @@ def main():
     corners = None
     ids = None
     
-    for dict_id in dict_to_try:
-        try:
-            aruco_dict = cv2.aruco.getPredefinedDictionary(dict_id)
-        except AttributeError:
-            aruco_dict = cv2.aruco.Dictionary_get(dict_id)
+    dict_id = cv2.aruco.DICT_4X4_50
+    try:
+        aruco_dict = cv2.aruco.getPredefinedDictionary(dict_id)
+    except AttributeError:
+        aruco_dict = cv2.aruco.Dictionary_get(dict_id)
 
-        try:
-            aruco_params = cv2.aruco.DetectorParameters()
-            detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
-            corners, ids, rejected = detector.detectMarkers(img)
-        except AttributeError:
-            aruco_params = cv2.aruco.DetectorParameters_create()
-            corners, ids, rejected = cv2.aruco.detectMarkers(img, aruco_dict, parameters=aruco_params)
-
-        if ids is not None and len(ids) >= 4:
-            print(f"Detected {len(ids)} markers using dictionary ID {dict_id}.")
-            break
+    try:
+        aruco_params = cv2.aruco.DetectorParameters()
+        detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
+        corners, ids, rejected = detector.detectMarkers(img)
+    except AttributeError:
+        aruco_params = cv2.aruco.DetectorParameters_create()
+        corners, ids, rejected = cv2.aruco.detectMarkers(img, aruco_dict, parameters=aruco_params)
 
     if ids is None or len(ids) < 4:
         print("Error: Could not detect at least 4 markers.")

@@ -311,5 +311,5 @@ def process_video():
     print(f"Video processing complete. Processed {processed_count} frames. Saved to {OUTPUT_VIDEO_PATH} and {OUTPUT_CSV_PATH}")
 
 if __name__ == "__main__":
-    # test_single_image()
-    process_video()
+    test_single_image()
+    # process_video()

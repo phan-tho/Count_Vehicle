@@ -26,6 +26,7 @@ def order_points(pts):
 def main():
     img_path = 'sample_img/sample.png'
     output_path = 'sample_img/phase1/phase1_output.png'
+    # img_path = 'sample_img/debug_video/frame_0.jpg'
     
     print(f"Loading image from {img_path}...")
     img = cv2.imread(img_path)

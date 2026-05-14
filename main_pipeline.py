@@ -3,11 +3,14 @@ import numpy as np
 import json
 import os
 import time
+import csv
 
 # --- HYPERPARAMETERS ---
 VIDEO_PATH = 'sa_ban_traffic.mp4'  # Use sample.png for image testing, sa_ban_traffic.mp4 for video
 OUTPUT_VIDEO_PATH = 'output_traffic.mp4'
+OUTPUT_CSV_PATH = 'traffic_data.csv'
 PROCESSED_FPS = 5  # Target FPS for processing (to simulate Pi5 performance)
+PERSPECTIVE_INTERVAL = 5  # Recompute perspective every N processed frames (helps with camera shake)
 ROIS_PATH = 'lane_rois.json'
 PARAMS_PATH = 'vehicle_params.json'
 # -----------------------
@@ -47,6 +50,14 @@ class VehicleCounter:
         rect[3] = pts[np.argmax(diff)]
         return rect
         
+    """
+    [
+    {'lane': 0, 'cars': 0, 'bikes': 0}, 
+    {'lane': 1, 'cars': 0, 'bikes': 0}, 
+    {'lane': 3, 'cars': 0, 'bikes': 2}, 
+    {'lane': 10, 'cars': 0, 'bikes': 2}]
+    """
+
     def init_perspective(self, img):
         dict_id = cv2.aruco.DICT_4X4_50
         try:
@@ -108,11 +119,12 @@ class VehicleCounter:
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
         return mask
         
-    def process_frame(self, img):
+    def process_frame(self, img, recompute_perspective=False):
         # 1. Perspective Transform (Phase 1)
-        if self.matrix is None:
-            if not self.init_perspective(img):
-                # Cannot initialize perspective, return original image
+        if self.matrix is None or recompute_perspective:
+            success = self.init_perspective(img)
+            if not success and self.matrix is None:
+                # Cannot initialize perspective and no previous matrix, return original image
                 return img, []
                 
         warped_img = cv2.warpPerspective(img, self.matrix, (self.max_width, self.max_height))
@@ -195,7 +207,7 @@ class VehicleCounter:
 def test_single_image(img_path='sample_img/sample.png'):
     print(f"--- Processing Single Image: {img_path} ---")
     counter = VehicleCounter()
-    img = cv2.imread(img_path)
+    img = cv2.imread("sample_img/debug_video/frame_0.jpg")
     if img is None:
         print(f"Error: Could not read image {img_path}")
         return
@@ -205,7 +217,7 @@ def test_single_image(img_path='sample_img/sample.png'):
     for res in results:
         print(f"  Lane {res['lane']}: {res['cars']} Cars, {res['bikes']} Bikes")
         
-    out_path = 'pipeline_image_output.png'
+    out_path = 'sample_img/debug_video/frame_0_outout.jpg'
     cv2.imwrite(out_path, out_img)
     print(f"Saved processed image to {out_path}\n")
 
@@ -234,40 +246,56 @@ def process_video():
     frame_idx = 0
     processed_count = 0
     
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-            
-        if frame_idx % frame_interval == 0:
-            start_time = time.time()
-            out_img, results = counter.process_frame(frame)
-            end_time = time.time()
-            
-            process_ms = (end_time - start_time) * 1000
-            
-            # Here is where we would send data to the server, e.g.:
-            # requests.post(SERVER_URL, json={"timestamp": time.time(), "counts": results})
-            
-            print(f"Frame {frame_idx:04d} | Processed in {process_ms:.1f}ms | {results}")
-            
-            if out is None and out_img is not None:
-                h, w = out_img.shape[:2]
-                out = cv2.VideoWriter(OUTPUT_VIDEO_PATH, fourcc, PROCESSED_FPS, (w, h))
-                
-            if out is not None and out_img is not None:
-                out.write(out_img)
-                
-            processed_count += 1
-                
-        frame_idx += 1
+    # Open CSV file for writing
+    with open(OUTPUT_CSV_PATH, mode='w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        # Write header
+        csv_writer.writerow(['Frame', 'Timestamp', 'Lane', 'Cars', 'Bikes'])
         
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+                
+            if frame_idx % frame_interval == 0:
+                start_time = time.time()
+                recompute = (processed_count % PERSPECTIVE_INTERVAL == 0)
+                out_img, results = counter.process_frame(frame, recompute_perspective=recompute)
+                end_time = time.time()
+
+                if (frame_idx % 100 == 0):
+                    cv2.imwrite(f"sample_img/debug_video/frame_{frame_idx}.jpg", frame)
+                    cv2.imwrite(f"sample_img/debug_video/frame_{frame_idx}_out.jpg", out_img)
+                
+                process_ms = (end_time - start_time) * 1000
+                
+                # Here is where we would send data to the server, e.g.:
+                # requests.post(SERVER_URL, json={"timestamp": time.time(), "counts": results})
+                
+                # print(f"Frame {frame_idx:04d} | Processed in {process_ms:.1f}ms | {results}")
+                
+                # Write to CSV
+                current_time = time.strftime("%Y-%m-%d %H:%M:%S")
+                for res in results:
+                    csv_writer.writerow([frame_idx, current_time, res['lane'], res['cars'], res['bikes']])
+                
+                if out is None and out_img is not None:
+                    h, w = out_img.shape[:2]
+                    out = cv2.VideoWriter(OUTPUT_VIDEO_PATH, fourcc, PROCESSED_FPS, (w, h))
+                    
+                if out is not None and out_img is not None:
+                    out.write(out_img)
+                    
+                processed_count += 1
+                    
+            frame_idx += 1
+            
     cap.release()
     if out is not None:
         out.release()
     cv2.destroyAllWindows()
-    print(f"Video processing complete. Processed {processed_count} frames. Saved to {OUTPUT_VIDEO_PATH}")
+    print(f"Video processing complete. Processed {processed_count} frames. Saved to {OUTPUT_VIDEO_PATH} and {OUTPUT_CSV_PATH}")
 
 if __name__ == "__main__":
     test_single_image()
-    process_video()
+    # process_video()

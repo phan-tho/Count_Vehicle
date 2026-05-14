@@ -11,33 +11,36 @@ OUTPUT_VIDEO_PATH = 'output_traffic.mp4'
 OUTPUT_CSV_PATH = 'traffic_data.csv'
 PROCESSED_FPS = 5  # Target FPS for processing (to simulate Pi5 performance)
 PERSPECTIVE_INTERVAL = 5  # Recompute perspective every N processed frames (helps with camera shake)
+ROI_JSON_PATH = 'meta_data/lane_rois.json'
+VEHICLE_PARAMS_PATH = 'meta_data/vehicle_params.json'
 # -----------------------
 
 class VehicleCounter:
-    def __init__(self):
+    def __init__(self, rois_path=ROI_JSON_PATH, params_path=VEHICLE_PARAMS_PATH):
         self.matrix = None
         self.max_width = 0
         self.max_height = 0
         
-        # if os.path.exists(rois_path):
-        #     with open(rois_path, 'r') as f:
-        #         self.rois = json.load(f)
-        self.rois = [[0.003045685279187817,0.27325581395348836,0.08020304568527918,0.12693798449612403],[0.22131979695431472,0.2810077519379845,0.5578680203045685,0.11918604651162791],[0.9187817258883249,0.1618217054263566,0.07766497461928934,0.11531007751937984],[0.2147208121827411,0.15891472868217055,0.5644670050761421,0.1182170542635659],[0.003045685279187817,0.7228682170542635,0.07614213197969544,0.11918604651162791],[0.216243654822335,0.7267441860465116,0.5649746192893401,0.11434108527131782],[0.9187817258883249,0.6046511627906976,0.07918781725888324,0.11724806201550388],[0.2182741116751269,0.6027131782945736,0.5619289340101523,0.11337209302325581],[0.14619289340101524,0.8498062015503876,0.06802030456852792,0.14922480620155038],[0.150253807106599,0.4060077519379845,0.0649746192893401,0.19573643410852712],[0.08375634517766498,0.0029069767441860465,0.06751269035532995,0.1501937984496124],[0.08578680203045685,0.40891472868217055,0.062436548223350256,0.187984496124031],[0.8467005076142132,0.8565891472868217,0.0700507614213198,0.1375968992248062],[0.8507614213197969,0.40988372093023256,0.06294416243654823,0.18313953488372092],[0.7852791878172589,0.005813953488372093,0.06598984771573604,0.1511627906976744],[0.7862944162436548,0.4001937984496124,0.05989847715736041,0.19089147286821706]]
+        if os.path.exists(rois_path):
+            with open(rois_path, 'r') as f:
+                self.rois = json.load(f)
 
-        # else:
-        #     print(f"Warning: {rois_path} not found.")
-        #     self.rois = []
+        else:
+            print(f"Warning: {rois_path} not found.")
+            self.rois = []
             
-        # if os.path.exists(params_path):
-        #     with open(params_path, 'r') as f:
-        #         params = json.load(f)
-        #         self.min_vehicle_area = params.get("MIN_VEHICLE_AREA", 200)
-        #         self.car_area = params.get("AVERAGE_CAR_AREA", 895)
-        #         self.bike_area = params.get("AVERAGE_BIKE_AREA", 400)
+        if os.path.exists(params_path):
+            with open(params_path, 'r') as f:
+                params = json.load(f)
+                self.min_vehicle_area = int(params.get("MIN_VEHICLE_AREA", 200) / 18.53)
+                self.car_area = int(params.get("AVERAGE_CAR_AREA", 895) / 15.53)
+                self.bike_area = int(params.get("AVERAGE_BIKE_AREA", 400) / 15.53)
 
-        self.min_vehicle_area = 162
-        self.car_area = 895
-        self.bike_area = 400
+                print(self.min_vehicle_area, self.car_area, self.bike_area)
+
+        # self.min_vehicle_area = 162
+        # self.car_area = 895
+        # self.bike_area = 400
 
     def order_points(self, pts):
         rect = np.zeros((4, 2), dtype="float32")
@@ -48,14 +51,6 @@ class VehicleCounter:
         rect[1] = pts[np.argmin(diff)]
         rect[3] = pts[np.argmax(diff)]
         return rect
-        
-    """
-    [
-    {'lane': 0, 'cars': 0, 'bikes': 0}, 
-    {'lane': 1, 'cars': 0, 'bikes': 0}, 
-    {'lane': 3, 'cars': 0, 'bikes': 2}, 
-    {'lane': 10, 'cars': 0, 'bikes': 2}]
-    """
 
     def init_perspective(self, img):
         dict_id = cv2.aruco.DICT_4X4_50
@@ -275,9 +270,9 @@ def process_video():
                 out_img, results = counter.process_frame(frame, recompute_perspective=recompute)
                 end_time = time.time()
 
-                # if (frame_idx % 100 == 0):
-                #     cv2.imwrite(f"sample_img/debug_video/frame_{frame_idx}.jpg", frame)
-                #     cv2.imwrite(f"sample_img/debug_video/frame_{frame_idx}_out.jpg", out_img)
+                if (frame_idx % 1000 == 0):
+                    cv2.imwrite(f"sample_img/debug_video/frame_{frame_idx}.jpg", frame)
+                    cv2.imwrite(f"sample_img/debug_video/frame_{frame_idx}_out.jpg", out_img)
                 
                 current_out_img = out_img
                 process_ms = (end_time - start_time) * 1000
@@ -311,5 +306,5 @@ def process_video():
     print(f"Video processing complete. Processed {processed_count} frames. Saved to {OUTPUT_VIDEO_PATH} and {OUTPUT_CSV_PATH}")
 
 if __name__ == "__main__":
-    test_single_image()
+    # test_single_image()
     process_video()
